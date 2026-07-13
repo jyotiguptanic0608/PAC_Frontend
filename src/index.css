@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@layer base {
+  button {
+    @apply cursor-pointer;
+  }
+}
+
+table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    background: white !important;
+}
+
+table th,
+table td {
+    border: 1px solid #d1d5db !important;
+    padding: 12px !important;
+    text-align: center !important;
+}
+
+table th {
+    background: #1e3a8a !important;
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+table tbody tr:nth-child(even) {
+    background: #f9fafb !important;
+}
+
+table tbody tr:hover {
+    background: #e0f2fe !important;
+}
