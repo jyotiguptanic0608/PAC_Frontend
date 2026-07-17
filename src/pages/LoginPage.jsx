@@ -53,6 +53,13 @@ setIsLoggedIn(true);
                 localStorage.setItem("userType", "pac");
                 navigate("/pac-Dashboard");
             } 
+            else if(response.data.role?.roleName==="CHAIRMAN"){
+
+    localStorage.setItem("userType","chairman");
+
+    navigate("/chairman-dashboard");
+
+}
             else {
                 localStorage.setItem("userType", "employee");
                 navigate("/dashboard");

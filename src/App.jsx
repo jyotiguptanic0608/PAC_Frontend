@@ -12,6 +12,7 @@ import RegisterPage from "./pages/RegisterPage";
 import PacDashboard from "./pages/PacDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ReviewHistoryPage from "./pages/ReviewHistoryPage";
+import ChairmanDashboard from "./pages/ChairmanDashboard";
 function App() {
 
 
@@ -87,6 +88,14 @@ const [isLoggedIn, setIsLoggedIn] = useState(() => {
             />
         }
     />
+    <Route
+    path="/chairman-dashboard"
+    element={
+        <ChairmanDashboard
+            setIsLoggedIn={setIsLoggedIn}
+        />
+    }
+/>
 
    
     <Route
