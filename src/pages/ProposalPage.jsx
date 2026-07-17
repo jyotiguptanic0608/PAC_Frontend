@@ -225,9 +225,14 @@ else if (userType === "admin") {
 
             <button
                 className="bg-blue-700 p-3 rounded-xl"
-               onClick={() => {
-    
-    navigate("/pac-Dashboard");
+              onClick={() => {
+
+    localStorage.setItem("pacOption","dashboard");
+
+    navigate("/pac-Dashboard",{
+        replace:true
+    });
+
 }}
             >
                 Dashboard

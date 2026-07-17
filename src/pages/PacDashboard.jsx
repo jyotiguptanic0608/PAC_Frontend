@@ -8,11 +8,10 @@ function PacDashboard({setIsLoggedIn }) {
      const navigate = useNavigate();
 
     const [proposals, setProposals] = useState([]);
-const [option, setOption] = useState(() => {
-    return localStorage.getItem("pacOption") || "dashboard";
-});
+
     const [pacMemberDetails, setPacMemberDetails] = useState(null);
     const [myProposals, setMyProposals] = useState([]);
+    const [option, setOption] = useState("dashboard");
     const [showReviewBox, setShowReviewBox] = useState(false);
 const [reviewText, setReviewText] = useState("");
 const [selectedProposalId, setSelectedProposalId] = useState(null);
@@ -25,43 +24,19 @@ const [approveProposalId, setApproveProposalId] = useState(null);
 
 const [showApproveSuccess, setShowApproveSuccess] = useState(false);
 useEffect(() => {
+    setOption(localStorage.getItem("pacOption") || "dashboard");
+}, []);
+
+useEffect(() => {
+    localStorage.setItem("pacOption", option);
+}, [option]);
+useEffect(() => {
     loadPacMemberDetails();
     fetchProposals();
     loadMyProposals();
 }, []);
     
-useEffect(() => {
 
-    const handleBack = () => {
-
-        const previous =
-            localStorage.getItem("returnOption");
-
-        if(previous){
-
-            setOption(previous);
-
-            localStorage.setItem(
-                "pacOption",
-                previous
-            );
-
-        }
-
-    };
-
-    window.addEventListener(
-        "popstate",
-        handleBack
-    );
-
-    return () =>
-        window.removeEventListener(
-            "popstate",
-            handleBack
-        );
-
-}, []);
     async function loadMyProposals() {
 
     try {
@@ -237,15 +212,16 @@ async function approveProposal() {
                 <div className="flex flex-col gap-4">
 <button
     className="bg-blue-700 p-3 rounded-xl"
-    onClick={() => {
+  onClick={() => {
 
     localStorage.removeItem("returnOption");
     localStorage.removeItem("resubmitProposal");
 
-    localStorage.setItem("pacOption","dashboard");
+    setShowPdf(false);
+    setShowReviewBox(false);
+    setShowApproveBox(false);
 
     setOption("dashboard");
-
 }}
 >
     Dashboard
@@ -272,8 +248,6 @@ onClick={async () => {
 
     await loadMyProposals();
 
-    localStorage.setItem("pacOption","myProposals");
-
     setOption("myProposals");
 
 }}
@@ -286,8 +260,6 @@ onClick={async () => {
   onClick={async () => {
 
     await fetchProposals();
-
-    localStorage.setItem("pacOption","review");
 
     setOption("review");
 
@@ -538,12 +510,15 @@ onClick={() => {
         "reviewHistory"
     );
 
-    window.history.pushState(
-        { option: "reviewHistory" },
-        ""
-    );
+    localStorage.setItem("returnOption", option);
 
-    setOption("reviewHistory");
+localStorage.setItem(
+    "selectedProposalId",
+    proposal.id
+);
+
+setOption("reviewHistory");
+
 
 }}
 >
