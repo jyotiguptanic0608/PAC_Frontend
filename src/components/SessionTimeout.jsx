@@ -3,6 +3,36 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 function SessionTimeout({setIsLoggedIn }) {
      const navigate = useNavigate();
+    useEffect(() => {
+
+    const interval = setInterval(async () => {
+
+        try {
+
+            await axios.get(
+                "http://localhost:8080/api/employees/validate-session",
+                {
+                    withCredentials: true
+                }
+            );
+
+        } catch (error) {
+
+            alert("Logged out because your account was opened on another device.");
+
+            localStorage.clear();
+
+            setIsLoggedIn(false);
+
+            navigate("/login");
+
+        }
+
+    }, 5000);
+
+    return () => clearInterval(interval);
+
+}, []);
 
     useEffect(() => {
 
