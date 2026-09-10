@@ -6,28 +6,24 @@ function SessionTimeout({setIsLoggedIn }) {
     useEffect(() => {
 
     const interval = setInterval(async () => {
-
         try {
-
-            await axios.get(
+            const res = await axios.get(
                 "http://localhost:8080/api/employees/validate-session",
                 {
                     withCredentials: true
                 }
             );
 
+            if (!res.data) {
+                localStorage.clear();
+                setIsLoggedIn(false);
+                navigate("/login", { replace: true });
+            }
         } catch (error) {
-
-            alert("Logged out because your account was opened on another device.");
-
             localStorage.clear();
-
             setIsLoggedIn(false);
-
-            navigate("/login");
-
+            navigate("/login", { replace: true });
         }
-
     }, 5000);
 
     return () => clearInterval(interval);
@@ -53,7 +49,7 @@ function SessionTimeout({setIsLoggedIn }) {
 
     setIsLoggedIn(false);
 
-    navigate("/login");
+    navigate("/login", { replace: true });
 
 }
 

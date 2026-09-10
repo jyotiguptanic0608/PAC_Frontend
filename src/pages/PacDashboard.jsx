@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import SessionTimeout from "../components/SessionTimeout";
+import LogoutConfirmationModal from "../components/LogoutConfirmationModal";
 import ReviewHistoryPage from "./ReviewHistoryPage";
 import { useNavigate } from "react-router-dom";
 
 function PacDashboard({setIsLoggedIn }) {
      const navigate = useNavigate();
+     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
     const [proposals, setProposals] = useState([]);
 
@@ -190,7 +192,7 @@ async function approveProposal() {
 
     localStorage.clear();
     setIsLoggedIn(false);
-    navigate("/login");
+    navigate("/login", { replace: true });
 }
 
     return (
@@ -269,8 +271,8 @@ onClick={async () => {
                     </button>
 
                     <button
-                        className="bg-red-600 p-3 rounded-xl"
-                        onClick={logout}
+                        className="bg-red-600 p-3 rounded-xl cursor-pointer"
+                        onClick={() => setShowLogoutModal(true)}
                     >
                         Logout
                     </button>
@@ -1015,9 +1017,13 @@ showApproveSuccess && (
 
 )
 }
-</>
-    );
-
+      <LogoutConfirmationModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={logout}
+      />
+    </>
+  );
 }
 
 export default PacDashboard;

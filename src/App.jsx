@@ -13,98 +13,82 @@ import PacDashboard from "./pages/PacDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ReviewHistoryPage from "./pages/ReviewHistoryPage";
 import ChairmanDashboard from "./pages/ChairmanDashboard";
+import { GuestRoute, ProtectedRoute } from "./components/AuthGuards";
+
 function App() {
-
-
-const [isLoggedIn, setIsLoggedIn] = useState(() => {
-
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem("isLoggedIn") === "true";
-
-});;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-orange-100 via-white to-green-100">
-
       <Header />
 
-      {
-  !isLoggedIn &&
- <Navbar />
-}
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
 
-     <Routes>
-
-    <Route
-        path="/"
-        element={<LandingPage />}
-    />
-
-    <Route
-        path="/login"
-        element={
-            <LoginPage
-                setIsLoggedIn={setIsLoggedIn}
-            />
-        }
-    />
-
-    <Route
-        path="/register"
-        element={<RegisterPage />}
-    />
-
-    <Route
-        path="/dashboard"
-        element={
-            <DashboardPage
-                setIsLoggedIn={setIsLoggedIn}
-            />
-        }
-    />
-
-    <Route
-        path="/proposal"
-        element={
-            <ProposalPage
-                setIsLoggedIn={setIsLoggedIn}
-            />
-        }
-    />
-
-    <Route
-        path="/pac-Dashboard"
-        element={
-            <PacDashboard
-                setIsLoggedIn={setIsLoggedIn}
-            />
-        }
-    />
-
-    <Route
-        path="/admin-Dashboard"
-        element={
-            <AdminDashboard
-                setIsLoggedIn={setIsLoggedIn}
-            />
-        }
-    />
-    <Route
-    path="/chairman-dashboard"
-    element={
-        <ChairmanDashboard
-            setIsLoggedIn={setIsLoggedIn}
+        {/* Guest Routes - Redirect logged-in users away from Login & Register */}
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <LoginPage setIsLoggedIn={setIsLoggedIn} />
+            </GuestRoute>
+          }
         />
-    }
-/>
+        <Route
+          path="/register"
+          element={
+            <GuestRoute>
+              <RegisterPage />
+            </GuestRoute>
+          }
+        />
 
-   
-    <Route
-        path="/about"
-        element={<AboutPage />}
-    />
+        {/* Protected Routes - Redirect unauthenticated users to Login */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage setIsLoggedIn={setIsLoggedIn} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/proposal"
+          element={
+            <ProtectedRoute>
+              <ProposalPage setIsLoggedIn={setIsLoggedIn} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pac-Dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["PAC_MEMBER", "pac"]}>
+              <PacDashboard setIsLoggedIn={setIsLoggedIn} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-Dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "admin"]}>
+              <AdminDashboard setIsLoggedIn={setIsLoggedIn} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chairman-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["CHAIRMAN", "chairman"]}>
+              <ChairmanDashboard setIsLoggedIn={setIsLoggedIn} />
+            </ProtectedRoute>
+          }
+        />
 
-</Routes>
-
+        <Route path="/about" element={<AboutPage />} />
+      </Routes>
     </div>
   );
 }

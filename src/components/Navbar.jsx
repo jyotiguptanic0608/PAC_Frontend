@@ -1,52 +1,62 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
 function Navbar() {
-   const navigate = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActive = (path) => location.pathname === path;
+
   return (
-    <div className="flex justify-center mt-8">
-
-     <div
-className="
-bg-[#072A80]
-rounded-full
-shadow-2xl
-border-4 border-amber-500
-w-[80%]
-py-4
-flex
-justify-center
-gap-30
-"
->
-
+    <div className="flex justify-center mt-4 mb-4 px-4">
+      <div
+        className="
+          bg-[#072A80]
+          rounded-full
+          shadow-xl
+          border-2 border-amber-500/90
+          w-full max-w-4xl
+          py-2.5 px-6
+          flex
+          justify-around
+          items-center
+        "
+      >
         <button
-          className="text-white text-2xl font-semibold hover:text-orange-300 duration-300"
+          className={`text-sm sm:text-base font-semibold transition-all cursor-pointer ${
+            isActive("/") ? "text-amber-400 font-bold" : "text-white hover:text-amber-300"
+          }`}
           onClick={() => navigate("/")}
         >
           Home
         </button>
 
         <button
-          className="text-white text-2xl font-semibold hover:text-orange-300 duration-300"
+          className={`text-sm sm:text-base font-semibold transition-all cursor-pointer ${
+            isActive("/about") ? "text-amber-400 font-bold" : "text-white hover:text-amber-300"
+          }`}
           onClick={() => navigate("/about")}
         >
           About Us
         </button>
 
-      <button
-    className="text-white text-2xl font-semibold hover:text-orange-300"
-    onClick={() => navigate("/register")}
->
-    Register
-</button>
+        <button
+          className={`text-sm sm:text-base font-semibold transition-all cursor-pointer ${
+            isActive("/register") ? "text-amber-400 font-bold" : "text-white hover:text-amber-300"
+          }`}
+          onClick={() => navigate("/register")}
+        >
+          Register
+        </button>
 
-<button
-    className="text-white text-2xl font-semibold hover:text-orange-300"
-    onClick={() => navigate("/login")}
->
-    Sign In
-</button>
+        <button
+          className={`text-sm sm:text-base font-semibold transition-all cursor-pointer ${
+            isActive("/login") ? "text-amber-400 font-bold" : "text-white hover:text-amber-300"
+          }`}
+          onClick={() => navigate("/login")}
+        >
+          Sign In
+        </button>
       </div>
-
     </div>
   );
 }
