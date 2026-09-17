@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import SessionTimeout from "../components/SessionTimeout";
 import LogoutConfirmationModal from "../components/LogoutConfirmationModal";
 import axios from "axios";
@@ -27,9 +27,13 @@ import {
 } from "react-icons/fi";
 import { HiBuildingLibrary } from "react-icons/hi2";
 
+import ResubmitModal from "../components/ResubmitModal";
+
 function DashboardPage({ setIsLoggedIn }) {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [resubmitTarget, setResubmitTarget] = useState(null);
+  const [isResubmitOpen, setIsResubmitOpen] = useState(false);
   const [option, setOption] = useState(() => {
     return localStorage.getItem("employeeOption") || "dashboard";
   });
@@ -43,6 +47,46 @@ function DashboardPage({ setIsLoggedIn }) {
   const [showPdf, setShowPdf] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState("");
   const [myProposals, setMyProposals] = useState([]);
+
+  // Inline row expansion for View History
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+
+  function toggleHistory(id) {
+    if (expandedHistoryId === id) {
+      setExpandedHistoryId(null);
+    } else {
+      setExpandedHistoryId(id);
+    }
+  }
+
+  function getProposalTimestamp(p) {
+    if (p.revisions && p.revisions.length > 0) {
+      const lastRev = p.revisions[p.revisions.length - 1];
+      if (lastRev.submissionDate) return new Date(lastRev.submissionDate).getTime();
+    }
+    if (p.latestSubmissionDate) return new Date(p.latestSubmissionDate).getTime();
+    if (p.date) return new Date(p.date).getTime();
+    return p.id || 0;
+  }
+
+  function formatDateTime(dateStr) {
+    if (!dateStr) return "N/A";
+    try {
+      if (dateStr.includes("T")) {
+        return new Date(dateStr).toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short"
+        });
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
+    }
+  }
+
+  const sortedMyProposals = [...myProposals].sort(
+    (a, b) => getProposalTimestamp(b) - getProposalTimestamp(a)
+  );
 
   useEffect(() => {
     loadEmployee();
@@ -375,6 +419,7 @@ function DashboardPage({ setIsLoggedIn }) {
                     <thead className="bg-slate-900 text-white font-semibold uppercase tracking-wider text-[11px]">
                       <tr>
                         <th className="p-4">Proposal Title</th>
+                        <th className="p-4">Submission / Revision Date</th>
                         <th className="p-4">Status</th>
                         <th className="p-4">Review History</th>
                         <th className="p-4">Uploaded PDF Files</th>
@@ -382,91 +427,119 @@ function DashboardPage({ setIsLoggedIn }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {myProposals.length === 0 ? (
+                      {sortedMyProposals.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-400 text-xs">
+                          <td colSpan={6} className="p-8 text-center text-slate-400 text-xs">
                             No proposals submitted yet. Click "Submit Proposal" to create one.
                           </td>
                         </tr>
                       ) : (
-                        myProposals.map((proposal) => (
-                          <tr key={proposal.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="p-4 font-semibold text-slate-900 max-w-xs">
-                              {proposal.title}
-                            </td>
+                        sortedMyProposals.map((proposal) => (
+                          <Fragment key={proposal.id}>
+                            <tr className={`hover:bg-slate-50/70 transition-colors ${expandedHistoryId === proposal.id ? 'bg-blue-50/40 font-medium' : ''}`}>
+                              <td className="p-4 font-semibold text-slate-900 max-w-xs">
+                                {proposal.title}
+                              </td>
 
-                            <td className="p-4">
-                              {proposal.status === "APPROVED" && (
-                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
-                                  <FiCheckCircle /> Approved
-                                </span>
-                              )}
-                              {proposal.status === "CHANGES_REQUIRED" && (
-                                <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
-                                  <FiRefreshCw /> Revision Needed
-                                </span>
-                              )}
-                              {proposal.status === "UNDER_REVIEW" && (
-                                <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
-                                  <FiClock /> Under Review
-                                </span>
-                              )}
-                            </td>
+                              <td className="p-4 text-slate-700 font-semibold whitespace-nowrap">
+                                <div className="flex items-center gap-1.5">
+                                  <FiClock className="text-slate-400 shrink-0" />
+                                  <span>{formatDateTime(proposal.latestSubmissionDate || proposal.date)}</span>
+                                </div>
+                              </td>
 
-                            <td className="p-4">
-                              <button
-                                onClick={() => {
-                                  localStorage.setItem("returnOption", option);
-                                  localStorage.setItem("selectedProposalId", proposal.id);
-                                  localStorage.setItem("employeeOption", "reviewHistory");
-                                  window.history.pushState({ option: "reviewHistory" }, "");
-                                  setOption("reviewHistory");
-                                }}
-                                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg text-xs border border-blue-200 transition-colors cursor-pointer"
-                              >
-                                View History
-                              </button>
-                            </td>
+                              <td className="p-4">
+                                {proposal.status === "APPROVED" && (
+                                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                                    <FiCheckCircle /> Approved
+                                  </span>
+                                )}
+                                {proposal.status === "CHANGES_REQUIRED" && (
+                                  <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                                    <FiRefreshCw /> Revision Needed
+                                  </span>
+                                )}
+                                {proposal.status === "UNDER_REVIEW" && (
+                                  <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1">
+                                    <FiClock /> Under Review
+                                  </span>
+                                )}
+                              </td>
 
-                            <td className="p-4">
-                              {proposal.file.split(",").map((fileName, index) => (
-                                <div key={index} className="my-1">
+                              <td className="p-4">
+                                <button
+                                  onClick={() => toggleHistory(proposal.id)}
+                                  className={`px-3 py-1.5 font-semibold rounded-lg text-xs border transition-all cursor-pointer ${
+                                    expandedHistoryId === proposal.id
+                                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                      : "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                                  }`}
+                                >
+                                  {expandedHistoryId === proposal.id ? "Hide History" : "View History"}
+                                </button>
+                              </td>
+
+                              <td className="p-4">
+                                {proposal.file.split(",").map((fileName, index) => (
+                                  <div key={index} className="my-1">
+                                    <button
+                                      onClick={() => {
+                                        setSelectedPdf(fileName);
+                                        setShowPdf(true);
+                                      }}
+                                      className="text-blue-600 hover:text-blue-800 font-medium underline flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <FiEye className="text-xs" />
+                                      <span className="truncate max-w-[150px]">{fileName}</span>
+                                    </button>
+                                  </div>
+                                ))}
+                              </td>
+
+                              <td className="p-4 text-center">
+                                {proposal.status === "CHANGES_REQUIRED" && (
                                   <button
                                     onClick={() => {
-                                      setSelectedPdf(fileName);
-                                      setShowPdf(true);
+                                      setResubmitTarget(proposal);
+                                      setIsResubmitOpen(true);
                                     }}
-                                    className="text-blue-600 hover:text-blue-800 font-medium underline flex items-center gap-1 cursor-pointer"
+                                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors cursor-pointer"
                                   >
-                                    <FiEye className="text-xs" />
-                                    <span className="truncate max-w-[150px]">{fileName}</span>
+                                    Resubmit
                                   </button>
-                                </div>
-                              ))}
-                            </td>
+                                )}
+                                {proposal.status === "UNDER_REVIEW" && (
+                                  <span className="text-slate-400 font-medium">Pending PAC</span>
+                                )}
+                                {proposal.status === "APPROVED" && (
+                                  <span className="text-emerald-600 font-bold">Sanctioned</span>
+                                )}
+                              </td>
+                            </tr>
 
-                            <td className="p-4 text-center">
-                              {proposal.status === "CHANGES_REQUIRED" && (
-                                <button
-                                  onClick={() => {
-                                    localStorage.setItem("resubmitProposal", JSON.stringify(proposal));
-                                    localStorage.setItem("userType", "employee");
-                                    localStorage.setItem("employeeOption", "myProposals");
-                                    navigate("/proposal");
-                                  }}
-                                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-xs shadow-xs transition-colors cursor-pointer"
-                                >
-                                  Resubmit
-                                </button>
-                              )}
-                              {proposal.status === "UNDER_REVIEW" && (
-                                <span className="text-slate-400 font-medium">Pending PAC</span>
-                              )}
-                              {proposal.status === "APPROVED" && (
-                                <span className="text-emerald-600 font-bold">Sanctioned</span>
-                              )}
-                            </td>
-                          </tr>
+                            {/* Inline History Details Accordion Row */}
+                            {expandedHistoryId === proposal.id && (
+                              <tr>
+                                <td colSpan={6} className="p-4 bg-slate-50/90 border-b border-slate-200">
+                                  <div className="bg-white rounded-2xl border border-slate-200 shadow-md p-4 sm:p-6 space-y-4 animate-in fade-in duration-200">
+                                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                      <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                        <FiClock className="text-blue-600 text-sm" />
+                                        <span>Proposal Evaluation History & Metadata (#{proposal.id})</span>
+                                      </h3>
+                                      <button
+                                        onClick={() => setExpandedHistoryId(null)}
+                                        className="text-xs text-slate-400 hover:text-slate-600 font-semibold px-2 py-1 rounded-md hover:bg-slate-100 cursor-pointer"
+                                      >
+                                        Hide Details ✕
+                                      </button>
+                                    </div>
+                                    <ReviewHistoryPage proposalId={proposal.id} inline={true} />
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         ))
                       )}
                     </tbody>
@@ -534,6 +607,18 @@ function DashboardPage({ setIsLoggedIn }) {
           </div>
         </div>
       )}
+
+      <ResubmitModal
+        proposal={resubmitTarget}
+        isOpen={isResubmitOpen}
+        onClose={() => {
+          setIsResubmitOpen(false);
+          setResubmitTarget(null);
+        }}
+        onSuccess={() => {
+          loadMyProposals();
+        }}
+      />
 
       <LogoutConfirmationModal
         isOpen={showLogoutModal}

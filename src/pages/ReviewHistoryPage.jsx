@@ -17,7 +17,7 @@ import {
 } from "react-icons/fi";
 import { HiBuildingLibrary } from "react-icons/hi2";
 
-function ReviewHistoryPage({ proposalId }) {
+function ReviewHistoryPage({ proposalId, inline = false }) {
   const [proposal, setProposal] = useState(null);
   const [showPdf, setShowPdf] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState("");
@@ -83,39 +83,41 @@ function ReviewHistoryPage({ proposalId }) {
 
   if (isLoading) {
     return (
-      <div className="w-full py-16 text-center text-slate-500 text-sm font-semibold flex items-center justify-center gap-2">
-        <FiRefreshCw className="animate-spin text-blue-600 text-lg" />
-        <span>Loading review history records...</span>
+      <div className="w-full py-8 text-center text-slate-500 text-xs font-semibold flex items-center justify-center gap-2">
+        <FiRefreshCw className="animate-spin text-blue-600 text-base" />
+        <span>Loading history records for Proposal #{proposalId}...</span>
       </div>
     );
   }
 
   if (!proposal) {
     return (
-      <div className="w-full bg-white rounded-2xl p-8 border border-slate-200 text-center text-slate-500 text-sm">
+      <div className="w-full bg-white rounded-xl p-6 border border-slate-200 text-center text-slate-500 text-xs">
         No proposal details found for ID #{proposalId}.
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-6 antialiased font-sans">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-[#021b3e] via-[#022859] to-[#043e85] rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 text-blue-300 shrink-0">
-            <FiClock className="text-2xl" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Proposal Review & Audit History
-            </h1>
-            <p className="text-xs text-blue-100/90 mt-1">
-              Detailed chronological evaluation logs, reviewer comments, and attached document versions for Proposal #{proposal.id}.
-            </p>
+    <div className="w-full space-y-5 antialiased font-sans">
+      {/* Top Banner (Only if not inline) */}
+      {!inline && (
+        <div className="bg-gradient-to-r from-[#021b3e] via-[#022859] to-[#043e85] rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 text-blue-300 shrink-0">
+              <FiClock className="text-2xl" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Proposal Review & Audit History
+              </h1>
+              <p className="text-xs text-blue-100/90 mt-1">
+                Detailed chronological evaluation logs, reviewer comments, and attached document versions for Proposal #{proposal.id}.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 1. Proposal Information Card */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
@@ -245,62 +247,103 @@ function ReviewHistoryPage({ proposalId }) {
         )}
       </div>
 
-      {/* 3. Proposal Versions Table */}
+      {/* 3. Proposal Document & Revision History Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
           <FiFileText className="text-blue-600 text-base" />
           <h2 className="text-sm font-bold text-slate-900">
-            Uploaded Proposal Documents & Attachments
+            Uploaded Proposal Documents & Revision History
           </h2>
         </div>
 
-        {proposal.file ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="p-4 w-32">Version</th>
-                  <th className="p-4">PDF Document File</th>
-                  <th className="p-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {proposal.file.split(",").map((fileName, index) => (
-                  <tr key={index} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4 font-bold text-slate-700">
-                      <span className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-[11px]">
-                        Version {index + 1}
-                      </span>
-                    </td>
+        {(() => {
+          const hasRevisions = proposal.revisions && proposal.revisions.length > 0;
+          const revisionList = hasRevisions
+            ? proposal.revisions
+            : (proposal.file ? proposal.file.split(",").map((file, idx) => ({
+                id: idx,
+                versionNumber: idx + 1,
+                submissionDate: proposal.date,
+                remarks: idx === 0 ? "Initial Proposal Submission" : "Revised Document Uploaded",
+                fileName: file
+              })) : []);
 
-                    <td className="p-4">
-                      <div className="flex items-center gap-2.5">
-                        <FiFile className="text-blue-600 text-base shrink-0" />
-                        <span className="font-bold text-slate-800 truncate max-w-lg">
-                          {fileName}
-                        </span>
-                      </div>
-                    </td>
+          if (revisionList.length === 0) {
+            return (
+              <div className="p-8 text-center text-slate-400 text-xs font-semibold">
+                No document attachments linked with this proposal.
+              </div>
+            );
+          }
 
-                    <td className="p-4 text-right">
-                      <button
-                        onClick={() => openPdf(fileName)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-xs transition-all cursor-pointer"
-                      >
-                        <FiEye />
-                        <span>View Document</span>
-                      </button>
-                    </td>
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                  <tr>
+                    <th className="p-4 w-28">Version</th>
+                    <th className="p-4 w-44">Submission Date</th>
+                    <th className="p-4">Employee Remarks / Change Notes</th>
+                    <th className="p-4">PDF Document File</th>
+                    <th className="p-4 text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-8 text-center text-slate-400 text-xs font-semibold">
-            No document attachments linked with this proposal.
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {revisionList.map((rev, index) => (
+                    <tr key={rev.id || index} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4 font-bold text-slate-700">
+                        <span className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-[11px] font-extrabold shadow-2xs">
+                          Version {rev.versionNumber || index + 1}
+                        </span>
+                      </td>
+
+                      <td className="p-4 text-slate-600 font-semibold">
+                        <div className="flex items-center gap-1.5">
+                          <FiClock className="text-slate-400 shrink-0" />
+                          <span>
+                            {rev.submissionDate
+                              ? (rev.submissionDate.includes("T")
+                                  ? new Date(rev.submissionDate).toLocaleString("en-IN", {
+                                      dateStyle: "medium",
+                                      timeStyle: "short"
+                                    })
+                                  : rev.submissionDate)
+                              : "N/A"}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-medium leading-relaxed">
+                          {rev.remarks || "No remarks entered."}
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <FiFile className="text-blue-600 text-base shrink-0" />
+                          <span className="font-bold text-slate-800 truncate max-w-xs">
+                            {rev.fileName}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => openPdf(rev.fileName)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-xs transition-all cursor-pointer"
+                        >
+                          <FiEye />
+                          <span>View Document</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Embedded PDF Viewer Modal */}

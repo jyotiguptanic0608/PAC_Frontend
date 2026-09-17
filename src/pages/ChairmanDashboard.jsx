@@ -5,9 +5,13 @@ import LogoutConfirmationModal from "../components/LogoutConfirmationModal";
 import ReviewHistoryPage from "./ReviewHistoryPage";
 import { useNavigate } from "react-router-dom";
 
+import ResubmitModal from "../components/ResubmitModal";
+
 function ChairmanDashboard({setIsLoggedIn }) {
      const navigate = useNavigate();
      const [showLogoutModal, setShowLogoutModal] = useState(false);
+     const [resubmitTarget, setResubmitTarget] = useState(null);
+     const [isResubmitOpen, setIsResubmitOpen] = useState(false);
 const [showChairmanApproveBox, setShowChairmanApproveBox] =
 useState(false);
 const [showChairmanSuccess, setShowChairmanSuccess]
@@ -29,10 +33,32 @@ const [option,setOption]=useState(()=>{
     return localStorage.getItem("chairmanOption") || "dashboard";
 });
 
-const [showApproveBox, setShowApproveBox] = useState(false);
-const [approveProposalId, setApproveProposalId] = useState(null);
-
 const [showApproveSuccess, setShowApproveSuccess] = useState(false);
+
+function getProposalTimestamp(p) {
+    if (p.revisions && p.revisions.length > 0) {
+        const lastRev = p.revisions[p.revisions.length - 1];
+        if (lastRev.submissionDate) return new Date(lastRev.submissionDate).getTime();
+    }
+    if (p.latestSubmissionDate) return new Date(p.latestSubmissionDate).getTime();
+    if (p.date) return new Date(p.date).getTime();
+    return p.id || 0;
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return "N/A";
+    try {
+        if (dateStr.includes("T")) {
+            return new Date(dateStr).toLocaleString("en-IN", {
+                dateStyle: "medium",
+                timeStyle: "short"
+            });
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
+}
 useEffect(() => {
     setOption(localStorage.getItem("chairmanOption") || "dashboard");
 }, []);
@@ -580,6 +606,7 @@ PAC Committee Member
                                     <th className="p-3">Name</th>
                                     <th>DeptName</th>
                                     <th>Title</th>
+                                    <th>Submission / Revision Date</th>
                                     <th>Status</th>
    <th>
     Review
@@ -595,7 +622,7 @@ PAC Committee Member
 
                                 {
 
-                                    proposals.map((proposal) => (
+                                    [...proposals].sort((a, b) => getProposalTimestamp(b) - getProposalTimestamp(a)).map((proposal) => (
 
                                         <tr
                                             key={proposal.id}
@@ -609,6 +636,10 @@ PAC Committee Member
 
                                             <td>
                                                 {proposal.title}
+                                            </td>
+
+                                            <td className="p-3 whitespace-nowrap font-medium text-slate-700">
+                                                {formatDateTime(proposal.latestSubmissionDate || proposal.date)}
                                             </td>
 
                                             <td>
@@ -749,6 +780,8 @@ My Proposals
 
 <th className="p-4">Title</th>
 
+<th>Submission / Revision Date</th>
+
 <th>Status</th>
 
 <th>Review</th>
@@ -765,7 +798,7 @@ My Proposals
 
 {
 
-myProposals.map((proposal)=>(
+[...myProposals].sort((a, b) => getProposalTimestamp(b) - getProposalTimestamp(a)).map((proposal)=>(
 
 <tr
 key={proposal.id}
@@ -774,6 +807,10 @@ className="border-b text-center"
 
 <td className="p-4">
 {proposal.title}
+</td>
+
+<td className="p-3 whitespace-nowrap font-medium text-slate-700">
+{formatDateTime(proposal.latestSubmissionDate || proposal.date)}
 </td>
 
 <td>
@@ -851,25 +888,8 @@ proposal.status==="CHANGES_REQUIRED" &&
 className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded"
 
 onClick={()=>{
-
-localStorage.setItem(
-
-"resubmitProposal",
-
-JSON.stringify(proposal)
-
-);
-
-localStorage.setItem(
-    "userType",
-    "pac"
-);
-localStorage.setItem(
-    "chairmanOption",
-    "myProposals"
-);
-
-navigate("/proposal");
+    setResubmitTarget(proposal);
+    setIsResubmitOpen(true);
 }}
 
 >
@@ -1362,6 +1382,19 @@ showApproveSuccess && (
 
 )
 }
+      <ResubmitModal
+        proposal={resubmitTarget}
+        isOpen={isResubmitOpen}
+        onClose={() => {
+          setIsResubmitOpen(false);
+          setResubmitTarget(null);
+        }}
+        onSuccess={() => {
+          if (typeof loadMyProposals === 'function') loadMyProposals();
+          if (typeof loadProposals === 'function') loadProposals();
+        }}
+      />
+
       <LogoutConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}

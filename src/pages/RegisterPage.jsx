@@ -35,6 +35,7 @@ function RegisterPage() {
   const [emergencyContact, setEmergencyContact] = useState("");
 
   const [pacCommitteeMember, setPacCommitteeMember] = useState(false);
+  const [groupHead, setGroupHead] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleRegister(e) {
@@ -55,7 +56,8 @@ function RegisterPage() {
           permanentAddress,
           ipNumber,
           emergencyContact,
-          pacCommitteeMember
+          pacCommitteeMember,
+          groupHead
         }
       );
 
@@ -259,22 +261,43 @@ function RegisterPage() {
                 </div>
               </div>
 
-              {/* PAC Committee Checkbox */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">
-                    PAC Committee Member Registration?
-                  </span>
-                  <span className="text-[11px] text-slate-500 block">
-                    Check this option if this user is a designated PAC Committee Reviewer.
-                  </span>
+              {/* Checkboxes for Roles/Designations */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* PAC Committee Checkbox */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      PAC Committee Member Registration?
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Check if this user is a designated PAC Committee Reviewer.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={pacCommitteeMember}
+                    onChange={(e) => setPacCommitteeMember(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={pacCommitteeMember}
-                  onChange={(e) => setPacCommitteeMember(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-                />
+
+                {/* Group Head Checkbox */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      Group Head Designation?
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Check if this employee is a Group Head.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={groupHead}
+                    onChange={(e) => setGroupHead(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
               </div>
 
               {/* Form Buttons */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { saveProposal } from "../services/proposalService";
 import SessionTimeout from "../components/SessionTimeout";
 import LogoutConfirmationModal from "../components/LogoutConfirmationModal";
@@ -15,8 +15,11 @@ import {
   FiUploadCloud,
   FiTrash2,
   FiCheckCircle,
-  FiArrowRight,
-  FiEdit3
+  FiEdit3,
+  FiSearch,
+  FiChevronDown,
+  FiX,
+  FiCheckSquare
 } from "react-icons/fi";
 import { HiBuildingLibrary } from "react-icons/hi2";
 
@@ -33,6 +36,26 @@ function ProposalPage({ setIsLoggedIn }) {
   const [projectCoordinator, setProjectCoordinator] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Group Heads and Employees dropdown data
+  const [groupHeadsList, setGroupHeadsList] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
+  const [isLoadingGroupHeads, setIsLoadingGroupHeads] = useState(false);
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
+
+  // User Profile for sidebar quick card
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("employee"));
+    } catch {
+      return null;
+    }
+  });
+
+  // Searchable Project Coordinator dropdown state
+  const [coordSearch, setCoordSearch] = useState("");
+  const [isCoordDropdownOpen, setIsCoordDropdownOpen] = useState(false);
+  const coordDropdownRef = useRef(null);
+
   const userType = localStorage.getItem("userType") || "employee";
 
   async function handleLogout() {
@@ -47,16 +70,63 @@ function ProposalPage({ setIsLoggedIn }) {
   }
 
   useEffect(() => {
+    // Fetch user profile, group heads, and all employees
+    async function fetchData() {
+      const employeeId = localStorage.getItem("employeeId");
+      if (employeeId && employeeId !== "null") {
+        try {
+          const profileRes = await axios.get(`http://localhost:8080/api/employees/${employeeId}`);
+          setUserProfile(profileRes.data);
+        } catch (e) {
+          console.error("Failed to load user profile", e);
+        }
+      }
+
+      setIsLoadingGroupHeads(true);
+      setIsLoadingEmployees(true);
+      try {
+        const ghRes = await axios.get("http://localhost:8080/api/employees/group-heads");
+        setGroupHeadsList(ghRes.data || []);
+      } catch (err) {
+        console.error("Failed to load group heads", err);
+      } finally {
+        setIsLoadingGroupHeads(false);
+      }
+
+      try {
+        const empRes = await axios.get("http://localhost:8080/api/employees");
+        setEmployeesList(empRes.data || []);
+      } catch (err) {
+        console.error("Failed to load employees list", err);
+      } finally {
+        setIsLoadingEmployees(false);
+      }
+    }
+    fetchData();
+
+    // Check resubmit proposal from local storage
     const proposal = JSON.parse(localStorage.getItem("resubmitProposal"));
     if (proposal) {
       setDeptname(proposal.departmentName || "");
       setTitle(proposal.title || "");
       setGroupHeadName(proposal.groupHeadName || "");
       setProjectCoordinator(proposal.projectCoordinator || "");
+      setCoordSearch(proposal.projectCoordinator || "");
       setDate(proposal.date || "");
       setDescp(proposal.description || "");
       localStorage.removeItem("resubmitProposal");
     }
+  }, []);
+
+  // Handle click outside for Project Coordinator searchable select
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (coordDropdownRef.current && !coordDropdownRef.current.contains(event.target)) {
+        setIsCoordDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   function handleFileChange(e) {
@@ -80,8 +150,17 @@ function ProposalPage({ setIsLoggedIn }) {
   async function handleSubmit(e) {
     if (e) e.preventDefault();
 
-    if (files.length === 0) {
-      alert("Please upload at least one PDF document.");
+    // Validate all mandatory fields
+    if (
+      !deptname.trim() ||
+      !groupHeadName.trim() ||
+      !projectCoordinator.trim() ||
+      !date.trim() ||
+      !title.trim() ||
+      !descp.trim() ||
+      files.length === 0
+    ) {
+      alert("All fields are mandatory. Please fill in all details and attach at least one PDF document.");
       return;
     }
 
@@ -110,15 +189,15 @@ function ProposalPage({ setIsLoggedIn }) {
       setMessage("Proposal submitted successfully!");
 
       setTimeout(() => {
-        if (userType === "employee") {
-          localStorage.setItem("employeeOption", "dashboard");
-          navigate("/dashboard");
-        } else if (userType === "pac") {
+        if (userType === "pac") {
           localStorage.setItem("pacOption", "dashboard");
           navigate("/pac-Dashboard");
         } else if (userType === "admin") {
           localStorage.setItem("adminOption", "dashboard");
           navigate("/admin-Dashboard");
+        } else {
+          localStorage.setItem("employeeOption", "dashboard");
+          navigate("/dashboard");
         }
       }, 1200);
     } catch (error) {
@@ -128,6 +207,18 @@ function ProposalPage({ setIsLoggedIn }) {
       setIsSubmitting(false);
     }
   }
+
+  // Filter employees for Project Coordinator search
+  const filteredEmployees = employeesList.filter((emp) => {
+    const query = coordSearch.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      (emp.name && emp.name.toLowerCase().includes(query)) ||
+      (emp.designation && emp.designation.toLowerCase().includes(query)) ||
+      (emp.departmentName && emp.departmentName.toLowerCase().includes(query)) ||
+      (emp.email && emp.email.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <>
@@ -139,15 +230,34 @@ function ProposalPage({ setIsLoggedIn }) {
           <div className="space-y-6">
             <div className="flex items-center gap-3 pb-6 border-b border-white/15">
               <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 text-blue-300">
-                <FiFilePlus className="text-xl" />
+                {userType === "pac" ? (
+                  <FiUserCheck className="text-xl" />
+                ) : (
+                  <FiFilePlus className="text-xl" />
+                )}
               </div>
               <div>
                 <h1 className="font-extrabold text-base tracking-tight leading-none text-white">
-                  {userType === "pac" ? "PAC Member Portal" : "Employee Portal"}
+                  {userType === "pac" ? "PAC Member Panel" : "Employee Portal"}
                 </h1>
                 <span className="text-[11px] text-blue-200 font-medium">
-                  Proposal Submission
+                  {userType === "pac" ? "Review & Management" : "Proposal Submission"}
                 </span>
+              </div>
+            </div>
+
+            {/* User Profile Quick Card */}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/15 text-xs text-blue-100 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-blue-500/30 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-blue-400/30">
+                {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : (userType === "pac" ? "P" : "E")}
+              </div>
+              <div className="overflow-hidden">
+                <p className="font-bold text-white truncate text-xs">
+                  {userProfile?.name || (userType === "pac" ? "PAC Member" : "Employee")}
+                </p>
+                <p className="text-[10px] text-blue-200 truncate">
+                  {userProfile?.username || "NIC@PAC"}
+                </p>
               </div>
             </div>
 
@@ -157,6 +267,9 @@ function ProposalPage({ setIsLoggedIn }) {
                   if (userType === "pac") {
                     localStorage.setItem("pacOption", "dashboard");
                     navigate("/pac-Dashboard");
+                  } else if (userType === "admin") {
+                    localStorage.setItem("adminOption", "dashboard");
+                    navigate("/admin-Dashboard");
                   } else {
                     localStorage.setItem("employeeOption", "dashboard");
                     navigate("/dashboard");
@@ -178,6 +291,9 @@ function ProposalPage({ setIsLoggedIn }) {
                   if (userType === "pac") {
                     localStorage.setItem("pacOption", "myProposals");
                     navigate("/pac-Dashboard");
+                  } else if (userType === "admin") {
+                    localStorage.setItem("adminOption", "proposals");
+                    navigate("/admin-Dashboard");
                   } else {
                     localStorage.setItem("employeeOption", "myProposals");
                     navigate("/dashboard");
@@ -188,6 +304,19 @@ function ProposalPage({ setIsLoggedIn }) {
                 <FiFileText className="text-base" />
                 <span>My Proposals</span>
               </button>
+
+              {(userType === "pac" || userProfile?.pacCommitteeMember) && (
+                <button
+                  onClick={() => {
+                    localStorage.setItem("pacOption", "review");
+                    navigate("/pac-Dashboard");
+                  }}
+                  className="w-full px-4 py-3 rounded-xl text-left flex items-center gap-3 text-blue-100 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                >
+                  <FiCheckSquare className="text-base" />
+                  <span>Review Proposals</span>
+                </button>
+              )}
             </nav>
           </div>
 
@@ -214,7 +343,7 @@ function ProposalPage({ setIsLoggedIn }) {
                     Project Proposal Submission
                   </h1>
                   <p className="text-xs text-blue-100/90 mt-1">
-                    Enter project details and attach required PDF documentation for PAC Committee review.
+                    Enter project details and attach required PDF documentation for PAC Committee review. All fields are mandatory.
                   </p>
                 </div>
               </div>
@@ -244,37 +373,111 @@ function ProposalPage({ setIsLoggedIn }) {
                     />
                   </div>
 
-                  {/* Group Head Name */}
+                  {/* Group Head Name (Dropdown from Employees table where group_head == true) */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
                       <FiUserCheck className="text-blue-600 text-sm" />
-                      <span>Group Head Name</span>
+                      <span>Group Head Name <span className="text-red-500">*</span></span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Saroj Kumar Sahoo"
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
-                      value={groupHeadName}
-                      onChange={(e) => setGroupHeadName(e.target.value)}
-                    />
+                    <div className="relative">
+                      <select
+                        required
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium appearance-none cursor-pointer pr-10"
+                        value={groupHeadName}
+                        onChange={(e) => setGroupHeadName(e.target.value)}
+                      >
+                        <option value="">
+                          {isLoadingGroupHeads ? "Loading Group Heads..." : "-- Select Group Head --"}
+                        </option>
+                        {groupHeadsList.map((gh) => (
+                          <option key={gh.id} value={gh.name}>
+                            {gh.name} {gh.designation ? `(${gh.designation})` : ""} {gh.departmentName ? `- ${gh.departmentName}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <FiChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-base" />
+                    </div>
                   </div>
 
-                  {/* Project Coordinator */}
-                  <div>
+                  {/* Project Coordinator (Searchable Dropdown of all Employees) */}
+                  <div className="relative" ref={coordDropdownRef}>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
                       <FiUser className="text-blue-600 text-sm" />
-                      <span>Project Coordinator</span>
+                      <span>Project Coordinator <span className="text-red-500">*</span></span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Ram Krishna Sahoo"
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
-                      value={projectCoordinator}
-                      onChange={(e) => setProjectCoordinator(e.target.value)}
-                    />
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder={isLoadingEmployees ? "Loading employees..." : "Search & Select Employee..."}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium pr-9"
+                        value={coordSearch}
+                        onFocus={() => setIsCoordDropdownOpen(true)}
+                        onChange={(e) => {
+                          setCoordSearch(e.target.value);
+                          setProjectCoordinator(e.target.value);
+                          setIsCoordDropdownOpen(true);
+                        }}
+                      />
+                      {coordSearch ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCoordSearch("");
+                            setProjectCoordinator("");
+                            setIsCoordDropdownOpen(true);
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <FiX className="text-base" />
+                        </button>
+                      ) : (
+                        <FiSearch className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm" />
+                      )}
+                    </div>
+
+                    {/* Search Dropdown Popup */}
+                    {isCoordDropdownOpen && (
+                      <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100">
+                        {isLoadingEmployees ? (
+                          <div className="p-3 text-xs text-slate-400 text-center">Loading employees list...</div>
+                        ) : filteredEmployees.length > 0 ? (
+                          filteredEmployees.map((emp) => (
+                            <div
+                              key={emp.id}
+                              onClick={() => {
+                                setProjectCoordinator(emp.name);
+                                setCoordSearch(emp.name);
+                                setIsCoordDropdownOpen(false);
+                              }}
+                              className={`p-3 hover:bg-blue-50 cursor-pointer transition-colors flex items-center justify-between ${
+                                projectCoordinator === emp.name ? "bg-blue-50/70 border-l-4 border-blue-600" : ""
+                              }`}
+                            >
+                              <div>
+                                <div className="text-xs font-bold text-slate-800">{emp.name}</div>
+                                <div className="text-[11px] text-slate-500">
+                                  {emp.designation || "Employee"} {emp.departmentName ? `• ${emp.departmentName}` : ""}
+                                </div>
+                              </div>
+                              {emp.groupHead && (
+                                <span className="text-[10px] bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+                                  Group Head
+                                </span>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 text-xs text-slate-400 text-center">
+                            No employees found matching "{coordSearch}"
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Date */}
+                  {/* Proposal Date */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
                       <FiCalendar className="text-blue-600 text-sm" />
@@ -283,7 +486,7 @@ function ProposalPage({ setIsLoggedIn }) {
                     <input
                       type="date"
                       required
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium cursor-pointer"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
                     />
@@ -309,10 +512,11 @@ function ProposalPage({ setIsLoggedIn }) {
                   <div className="lg:col-span-3">
                     <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
                       <FiEdit3 className="text-blue-600 text-sm" />
-                      <span>Project Summary & Detailed Description</span>
+                      <span>Project Summary & Detailed Description <span className="text-red-500">*</span></span>
                     </label>
                     <textarea
                       rows={4}
+                      required
                       placeholder="Enter detailed project scope, objectives, budget summary, and implementation strategy..."
                       className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm focus:bg-white focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-normal"
                       value={descp}
@@ -322,17 +526,17 @@ function ProposalPage({ setIsLoggedIn }) {
                 </div>
 
                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-2 pt-2">
-                  2. Document Attachments (PDF Only)
+                  2. Document Attachments (PDF Only) <span className="text-red-500">*</span>
                 </h2>
 
                 {/* PDF File Upload Zone */}
                 <div className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-6 text-center bg-slate-50/60 transition-colors">
                   <FiUploadCloud className="text-3xl text-blue-600 mx-auto mb-2" />
                   <p className="text-xs font-bold text-slate-800">
-                    Upload Proposal Documents
+                    Upload Proposal Documents <span className="text-red-500">*</span>
                   </p>
                   <p className="text-[11px] text-slate-400 mb-3">
-                    Only PDF documents are accepted for PAC evaluation.
+                    At least one PDF document is required for PAC evaluation.
                   </p>
 
                   <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/20 cursor-pointer transition-all">
@@ -397,9 +601,25 @@ function ProposalPage({ setIsLoggedIn }) {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || !title || !deptname || files.length === 0}
+                    disabled={
+                      isSubmitting ||
+                      !deptname.trim() ||
+                      !groupHeadName.trim() ||
+                      !projectCoordinator.trim() ||
+                      !date.trim() ||
+                      !title.trim() ||
+                      !descp.trim() ||
+                      files.length === 0
+                    }
                     className={`flex-1 py-3 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.99] transition-all shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 text-xs sm:text-sm ${
-                      isSubmitting || !title || !deptname || files.length === 0
+                      isSubmitting ||
+                      !deptname.trim() ||
+                      !groupHeadName.trim() ||
+                      !projectCoordinator.trim() ||
+                      !date.trim() ||
+                      !title.trim() ||
+                      !descp.trim() ||
+                      files.length === 0
                         ? "opacity-60 cursor-not-allowed shadow-none"
                         : "cursor-pointer"
                     }`}
